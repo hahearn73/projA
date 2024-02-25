@@ -17,13 +17,13 @@ import pickle
 
 # TODO: please replace the line below with your implementations. The line below is just an 
 # example. 
-from stub.feature_extraction import dumb_feature_extractor1
-extract_BoW_features = dumb_feature_extractor1
+from problem1 import make_bag_of_words_from_vocab
+extract_BoW_features = make_bag_of_words_from_vocab
 
 # TODO: please load your own trained models. Please check train_and_save_classifier.py to find 
 # an example of training and saving a classiifer. 
 
-with open('stub/classifier1.pkl', 'rb') as f:
+with open('regression_model.pkl', 'rb') as f:
     classifier1 = pickle.load(f)
 
 # TODO: please provide your team name -- 20 chars maximum and no spaces please.  
