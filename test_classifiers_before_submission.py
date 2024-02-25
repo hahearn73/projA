@@ -20,7 +20,7 @@ def main():
     print("Team " + teamname + " is working on the project!")
 
     # overview the training data
-    data_dir='./data_reviews'
+    data_dir='data_reviews'
     x_test_df = pd.read_csv(os.path.join(data_dir, 'x_test_6_samples.csv'))
     x_test_text = x_test_df.values.tolist()
     print("\nThe test inputs:")
@@ -30,9 +30,8 @@ def main():
 
     # this function should accept a list of N lists, with each internal list contains two strings
     # It should return a numpy array of size [N, F1]
-    x_test_text = x_test_df['text']
+    print(x_test_text)
     x_test1 = extract_BoW_features(x_test_text)
-    print(x_test1)
     assert(x_test1.shape[0] == len(x_test_text))
 
     # `classifier1` should be able to predict N probabilities from a feature matrix of size [N, F1]

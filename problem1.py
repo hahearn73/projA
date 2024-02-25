@@ -14,6 +14,7 @@ BOW_FILE = "bow_columns_list.txt"
 def make_bag_of_words_from_vocab(text_series, ngram_range=(1, 1), max_features=1000, vocabulary_file=BOW_FILE):
     with open(vocabulary_file, 'r') as file:
         vocabulary = file.read().splitlines()
+    text_series = [text_list[1] for text_list in text_series]
     vectorizer = CountVectorizer(ngram_range=ngram_range, max_features=max_features, stop_words='english', vocabulary=vocabulary)
     bow_matrix = vectorizer.fit_transform(text_series)
     bow_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
