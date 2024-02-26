@@ -23,7 +23,7 @@ extract_BoW_features = make_bag_of_words_from_vocab
 # TODO: please load your own trained models. Please check train_and_save_classifier.py to find 
 # an example of training and saving a classiifer. 
 
-with open('regression_model.pkl', 'rb') as f:
+with open('regression_mdl.pkl', 'rb') as f:
     classifier1 = pickle.load(f)
 
 # TODO: please provide your team name -- 20 chars maximum and no spaces please.  

@@ -1,10 +1,5 @@
 import numpy as np
 import sklearn
-from sklearn.metrics import zero_one_loss
-
-from performance_metrics import calc_root_mean_squared_error
-from proba_metrics import calc_mean_binary_cross_entropy_from_probas
-
 
 def train_models_and_calc_scores_for_n_fold_cv(
         estimator, x_NF, y_N, n_folds=3, random_state=0):
@@ -64,7 +59,7 @@ def train_models_and_calc_scores_for_n_fold_cv(
 
         # calc errors
         train_error_per_fold[i] = sklearn.metrics.zero_one_loss(train_fold_y, proba_train_x >= .5)
-        train_error_per_fold[i] = sklearn.metrics.zero_one_loss(test_fold_y, proba_test_x >= .5)
+        test_error_per_fold[i] = sklearn.metrics.zero_one_loss(test_fold_y, proba_test_x >= .5)
 
 
     return train_error_per_fold, test_error_per_fold
