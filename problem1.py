@@ -1,34 +1,51 @@
 import os
-import pickle
+
 # from matplotlib import pyplot as plt
+
 import numpy as np
 import pandas as pd
+
 import sklearn.linear_model
 import sklearn.metrics
 from sklearn.feature_extraction.text import CountVectorizer
 
 from cross_validation import *
+
 BOW_FILE = "bow_columns_list.txt"
 REGRESSION_PKL_FILE = "regression_mdl.pkl"
-website_mapping = {'imdb': 0, 'amazon': 1, 'yelp': 2}
+WEBSITE_MAPPING = {'imdb': 0, 'amazon': 1, 'yelp': 2}
+RANDOM_STATE = 132
+NUM_FOLDS = 6
 
-def make_bag_of_words_from_vocab(text_series, ngram_range=(1, 1), max_features=1000, vocabulary_file=BOW_FILE):
-    # first_entries_df = pd.DataFrame([text_list[0] for text_list in text_series], columns=['website_name'])
-    # first_entries_df['website_name'] = first_entries_df['website_name'].apply(lambda x: website_mapping.get(x, -1))
+### IO
+import pickle
+REGRESSION_PKL_FILE = "regression_mdl.pkl"
 
+def write_out_model(model, filename=REGRESSION_PKL_FILE):
+    with open(REGRESSION_PKL_FILE, 'wb') as f:
+        pickle.dump(model, f)
+        print(f'model saved as: {REGRESSION_PKL_FILE}')
+
+def read_in_model(filename=REGRESSION_PKL_FILE):
+    with open(REGRESSION_PKL_FILE, 'rb') as f:
+        model = pickle.load(f)
+    return model
+
+def copy_model_hyperparameters(model):
+    return sklearn.linear_model.LogisticRegression(solver=model.solver, C=model.C, fit_intercept=model.fit_intercept, penalty=model.penalty, tol=model.tol)
+
+### BOW
+def make_bag_of_words_from_vocab(text_series, ngram_range=(1, 1), max_features=1000, vocabulary_file=BOW_FILE, binary=True):
     with open(vocabulary_file, 'r') as file:
         vocabulary = file.read().splitlines()
     text_series = [text_list[1] for text_list in text_series]
-    vectorizer = CountVectorizer(ngram_range=ngram_range, max_features=max_features, stop_words='english', vocabulary=vocabulary)
+    vectorizer = CountVectorizer(ngram_range=ngram_range, max_features=max_features, stop_words='english', vocabulary=vocabulary, binary=binary)
     bow_matrix = vectorizer.fit_transform(text_series)
     bow_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
-
-    # x_train_df = pd.concat([first_entries_df, bow_df])
-    # return x_train_df
     return bow_df
 
-def make_bag_of_words(text_series, ngram_range=(1, 1), max_features=1000):
-    vectorizer = CountVectorizer(ngram_range=ngram_range, max_features=max_features, stop_words='english')
+def make_bag_of_words(text_series, ngram_range=(1, 1), max_features=1000, binary=True):
+    vectorizer = CountVectorizer(ngram_range=ngram_range, max_features=max_features, stop_words='english', binary=binary)
     bow_matrix = vectorizer.fit_transform(text_series)
     bow_df = pd.DataFrame(bow_matrix.toarray(), columns=vectorizer.get_feature_names_out())
     return bow_df
@@ -40,88 +57,78 @@ def make_bags_of_words(text_series, smallest, largest, max_features=None):
             df[i][j] = make_bag_of_words(text_series, ngram_range=(i, j), max_features=max_features)
     return df
 
-def find_best_hyperparameters(x_train_array, y_train_array):
+
+
+### TRAINING
+def find_best_hyperparameters(x_train_array, y_train_array, serialize=True):
     # penalties = ['l1', 'l2', 'elasticnet']
     penalties = ['l2']
-    C_grid = np.logspace(0, 1, 1000)
-    # C_grid = [1.0]
-    # solvers = ['lbfgs', 'liblinear', 'newton-cg', 'newton-cholesky', 'sag', 'saga']
-    solvers = ['lbfgs']
-    fit_intercepts = [True, False]
-    # fit_intercepts = [True]
-    tols = [1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1]
-    # tols = [1e-4]
+    # C_grid = np.logspace(0, np.log10(2), 10)
+    C_grid = [1.0284017999892119]
+    # solvers = ['lbfgs', 'liblinear']
+    solvers = ['liblinear']
+    # fit_intercepts = [True, False]
+    fit_intercepts = [True]
+    # tols = np.logspace(-2, 0, 10)
+    tols = [0.4146299840754365]
 
     total_iterations = len(tols) * len(fit_intercepts) * len(solvers) * len(C_grid) * len(penalties)
     print(f'total iterations: {total_iterations}')
-    total_loops = len(penalties)
-
-    num_folds = 6
-    random_state = 132
-
     models_and_hyperparameters = []
-
     curr_itr = 0
-    curr_loop = 0
     for penalty in penalties:
-        curr_loop += 1
-        print(f'{curr_loop}/{total_loops} loops')
         for C in C_grid:
             for solver in solvers:
                 for fit_intercept in fit_intercepts:
                     for tol in tols:
                         curr_itr += 1
-                        # if solver == 'lbfgs' and penalty != 'l2':
-                        #     penalty = 'l2'
                         model = sklearn.linear_model.LogisticRegression(penalty=penalty, C=C, solver=solver, fit_intercept=fit_intercept, tol=tol, max_iter=1000)
                         model.fit(x_train_array, y_train_array.ravel())
-
-                        # determine error
-                        train_err_per_fold, test_error_per_fold = train_models_and_calc_scores_for_n_fold_cv(model, x_train_array, y_train_array.ravel(), n_folds=num_folds, random_state=random_state)
-                        avg_test_error = np.average(test_error_per_fold)
-                        # avg_train_error = np.average(train_err_per_fold)
-
-                        # probas and rocauc
-                        y_train_proba = model.predict_proba(x_train_array)[:,1]
-                        rocauc = sklearn.metrics.roc_auc_score(y_train_array, y_train_proba)
-
+                        avg_test_error, rocauc, avg_train_error = get_error_and_rocauc(model, x_train_array, y_train_array)
                         models_and_hyperparameters.append((model, penalty, C, solver, fit_intercept, tol, avg_test_error, rocauc))
                         print(f'{curr_itr}/{total_iterations}', penalty, C, solver, fit_intercept, tol, avg_test_error, rocauc)
 
     min_err = 1000000
-    best_model = ()
+    best_model_tuple = ()
     for models_and_hyperparameter in models_and_hyperparameters:
-        # print(models_and_hyperparameter)
         curr_err = models_and_hyperparameter[6]
         if curr_err < min_err:
             min_err = curr_err
-            best_model = models_and_hyperparameter
-    return best_model
+            best_model_tuple = models_and_hyperparameter
+    
+    if serialize:
+        best_model = best_model_tuple[0]
+        print(best_model_tuple)
+        write_out_model(best_model)
+    return best_model_tuple
 
 
+
+### TESTING
+def get_error_and_rocauc(model, x_train_array, y_train_array, num_folds=NUM_FOLDS, random_state=RANDOM_STATE):
+    train_err_per_fold, test_error_per_fold = train_models_and_calc_scores_for_n_fold_cv(model, x_train_array, y_train_array.ravel(), n_folds=num_folds, random_state=random_state)
+    avg_test_error = np.average(test_error_per_fold)
+    avg_train_error = np.average(train_err_per_fold)
+    y_train_proba = model.predict_proba(x_train_array)[:,1]
+    rocauc = sklearn.metrics.roc_auc_score(y_train_array, y_train_proba)
+    return avg_test_error, rocauc, avg_train_error
+
+
+def copy_and_test_model(model, x_train_array, y_train_array, num_folds=NUM_FOLDS, random_state=RANDOM_STATE):
+    model = copy_model_hyperparameters(model)
+    print(model, get_error_and_rocauc(model, x_train_array, y_train_array))
+
+
+
+
+############ MAIN #############
 def main(data_dir='./data_reviews'):
     x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))
     y_train_df = pd.read_csv(os.path.join(data_dir, 'y_train.csv'))
-
-    # bows_df_10 = make_bags_of_words(x_train_df['text'], 1, 4, max_features=10)
-    # bows_df_25 = make_bags_of_words(x_train_df['text'], 1, 4, max_features=25)
-    # bows_df_50 = make_bags_of_words(x_train_df['text'], 1, 4, max_features=50)
-    # bows_df_100 = make_bags_of_words(x_train_df['text'], 1, 4, max_features=100)
-    # bows_df_250 = make_bags_of_words(x_train_df['text'], 1, 4, max_features=250)
-    # bows_df_500 = make_bags_of_words(x_train_df['text'], 1, 4, max_features=500)
-    # bows_df_1000 = make_bags_of_words(x_train_df['text'], 1, 4, max_features=1000)
-    # bows_df_2000 = make_bags_of_words(x_train_df['text'], 1, 4, max_features=2000)
-    bows_df_10 = make_bag_of_words(x_train_df['text'], ngram_range=(1, 1), max_features=10)
-    bows_df_25 = make_bag_of_words(x_train_df['text'], ngram_range=(1, 1), max_features=25)
-    bows_df_50 = make_bag_of_words(x_train_df['text'], ngram_range=(1, 1), max_features=50)
-    bows_df_100 = make_bag_of_words(x_train_df['text'], ngram_range=(1, 1), max_features=100)
-    bows_df_250 = make_bag_of_words(x_train_df['text'], ngram_range=(1, 1), max_features=250)
-    bows_df_500 = make_bag_of_words(x_train_df['text'], ngram_range=(1, 1), max_features=500)
-    bows_df_1000 = make_bag_of_words(x_train_df['text'], ngram_range=(1, 1), max_features=1000)
-
     
     # choose bow
-    bow = make_bag_of_words(x_train_df['text'], ngram_range=(1, 1), max_features=1000)
+    bow_max_features = 100
+    bow = make_bag_of_words(x_train_df['text'], max_features=bow_max_features)
     # export as list
     with open(BOW_FILE, 'w') as file:
         for column in bow.columns:
@@ -132,20 +139,26 @@ def main(data_dir='./data_reviews'):
     # x_train_df['website_name'].replace(website_mapping, inplace=True)
     x_train_array = x_train_df.to_numpy()
     y_train_array = y_train_df.to_numpy()
-    model = sklearn.linear_model.LogisticRegression()
-    model.fit(x_train_array, y_train_array.ravel())
     
     # find best hyperparameters
-    best_model_and_hyperparameters = find_best_hyperparameters(x_train_array=x_train_array, y_train_array=y_train_array)
-    print(best_model_and_hyperparameters)
-    best_model = best_model_and_hyperparameters[0]
-    print(best_model)
+    best_model_and_hyperparameters = find_best_hyperparameters(x_train_array=x_train_array, y_train_array=y_train_array, serialize=True)
 
-    # pickle model
-    with open(REGRESSION_PKL_FILE, 'wb') as f:
-        pickle.dump(best_model, f)
-        print(f'model saved as: {REGRESSION_PKL_FILE}')
+    # test with more words
+    x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))
+    bow_max_features = 1000
+    bow = make_bag_of_words(x_train_df['text'], max_features=bow_max_features)
+    x_train_df = pd.concat([x_train_df, bow], axis=1).drop(columns=['text', 'website_name'], axis=1)
+    x_train_array = x_train_df.to_numpy()
+    y_train_array = y_train_df.to_numpy()
+    copy_and_test_model(best_model_and_hyperparameters[0], x_train_array, y_train_array)
+    write_out_model(best_model_and_hyperparameters[0])
 
+    # use prior model
+    # copy_and_test_model(read_in_model(), x_train_array, y_train_array)
+
+    # current best model
+    # model = sklearn.linear_model.LogisticRegression(C=1.0284017999892119, solver='liblinear', tol=0.4146299840754365, fit_intercept=True, penalty='l2')
+    # write_out_model(model)
 
 
 if __name__ == '__main__':
