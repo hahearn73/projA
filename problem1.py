@@ -125,9 +125,10 @@ def copy_and_test_model(model, x_train_array, y_train_array, num_folds=NUM_FOLDS
 def main(data_dir='./data_reviews'):
     x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))
     y_train_df = pd.read_csv(os.path.join(data_dir, 'y_train.csv'))
+    text = x_train_df['text']
     
     # choose bow
-    bow_max_features = 100
+    bow_max_features = 1000
     bow = make_bag_of_words(x_train_df['text'], max_features=bow_max_features)
     # export as list
     with open(BOW_FILE, 'w') as file:
@@ -140,25 +141,74 @@ def main(data_dir='./data_reviews'):
     x_train_array = x_train_df.to_numpy()
     y_train_array = y_train_df.to_numpy()
     
-    # find best hyperparameters
-    best_model_and_hyperparameters = find_best_hyperparameters(x_train_array=x_train_array, y_train_array=y_train_array, serialize=True)
+    # # find best hyperparameters
+    # best_model_and_hyperparameters = find_best_hyperparameters(x_train_array=x_train_array, y_train_array=y_train_array, serialize=True)
 
-    # test with more words
-    x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))
-    bow_max_features = 1000
-    bow = make_bag_of_words(x_train_df['text'], max_features=bow_max_features)
-    x_train_df = pd.concat([x_train_df, bow], axis=1).drop(columns=['text', 'website_name'], axis=1)
-    x_train_array = x_train_df.to_numpy()
-    y_train_array = y_train_df.to_numpy()
-    copy_and_test_model(best_model_and_hyperparameters[0], x_train_array, y_train_array)
-    write_out_model(best_model_and_hyperparameters[0])
+    # # test with more words
+    # x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))
+    # bow_max_features = 1000
+    # bow = make_bag_of_words(x_train_df['text'], max_features=bow_max_features)
+    # x_train_df = pd.concat([x_train_df, bow], axis=1).drop(columns=['text', 'website_name'], axis=1)
+    # x_train_array = x_train_df.to_numpy()
+    # y_train_array = y_train_df.to_numpy()
+    # copy_and_test_model(best_model_and_hyperparameters[0], x_train_array, y_train_array)
+    # write_out_model(best_model_and_hyperparameters[0])
 
     # use prior model
     # copy_and_test_model(read_in_model(), x_train_array, y_train_array)
 
     # current best model
-    # model = sklearn.linear_model.LogisticRegression(C=1.0284017999892119, solver='liblinear', tol=0.4146299840754365, fit_intercept=True, penalty='l2')
+    model = sklearn.linear_model.LogisticRegression(C=1.0284017999892119, solver='liblinear', tol=0.4146299840754365, fit_intercept=True, penalty='l2')
     # write_out_model(model)
+
+    # 1D
+    explore_word_count(model, x_train_array, y_train_array, text)
+
+
+def explore_word_count(model, x_train_array, y_train_array, text):
+    miss_word_count_tuples = []
+    hit_word_count_tuples = []
+    for fold_number in range(0, 6):
+        train_ids_per_fold, test_ids_per_fold = make_train_and_test_row_ids_for_n_fold_cv(n_examples=x_train_array.shape[0], n_folds=NUM_FOLDS, random_state=RANDOM_STATE)
+        model.fit(x_train_array[train_ids_per_fold[fold_number]], y_train_array[train_ids_per_fold[fold_number]].ravel())
+
+        tp_indices = []
+        tn_indices = []
+        fp_indices = []
+        fn_indices = []
+        hits = 0
+        misses = 0
+        for index in test_ids_per_fold[fold_number]:
+            prediction = model.predict([x_train_array[index]])
+            if prediction == y_train_array[index]:
+                if y_train_array[index] == 1:
+                    tp_indices.append(index)
+                else:
+                    tn_indices.append(index)
+                hits += 1
+            else:
+                if y_train_array[index] == 1:
+                    fn_indices.append(index)
+                else:
+                    fp_indices.append(index)
+                misses += 1
+        
+        fp_size_total = 0
+        fn_size_total = 0
+        tp_size_total = 0
+        tn_size_total = 0
+        for index in fp_indices:
+            fp_size_total += len(text[index].split())
+        for index in fn_indices:
+            fn_size_total += len(text[index].split())
+        for index in tp_indices:
+            tp_size_total += len(text[index].split())
+        for index in tn_indices:
+            tn_size_total += len(text[index].split())
+        miss_word_count_tuples.append((fp_size_total / len(fp_indices), fn_size_total / len(fn_indices)))
+        hit_word_count_tuples.append((tp_size_total / len(tp_indices), tn_size_total / len(tn_indices)))
+    for i in range(6):
+        print(f"{hit_word_count_tuples[i]} : {miss_word_count_tuples[i]}")
 
 
 if __name__ == '__main__':
