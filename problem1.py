@@ -1,6 +1,6 @@
 import os
 
-# from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 import numpy as np
 import pandas as pd
@@ -166,8 +166,10 @@ def main(data_dir='./data_reviews'):
 
 
 def explore_word_count(model, x_train_array, y_train_array, text):
-    miss_word_count_tuples = []
-    hit_word_count_tuples = []
+    tp_word_count = []
+    tn_word_count = []
+    fp_word_count = []
+    fn_word_count = []
     for fold_number in range(0, 6):
         train_ids_per_fold, test_ids_per_fold = make_train_and_test_row_ids_for_n_fold_cv(n_examples=x_train_array.shape[0], n_folds=NUM_FOLDS, random_state=RANDOM_STATE)
         model.fit(x_train_array[train_ids_per_fold[fold_number]], y_train_array[train_ids_per_fold[fold_number]].ravel())
@@ -205,11 +207,30 @@ def explore_word_count(model, x_train_array, y_train_array, text):
             tp_size_total += len(text[index].split())
         for index in tn_indices:
             tn_size_total += len(text[index].split())
-        miss_word_count_tuples.append((fp_size_total / len(fp_indices), fn_size_total / len(fn_indices)))
-        hit_word_count_tuples.append((tp_size_total / len(tp_indices), tn_size_total / len(tn_indices)))
+        # miss_word_count_tuples.append((fp_size_total / len(fp_indices), fn_size_total / len(fn_indices)))
+        # hit_word_count_tuples.append((tp_size_total / len(tp_indices), tn_size_total / len(tn_indices)))
+        fp_word_count.append(fp_size_total / len(fp_indices))
+        fn_word_count.append(fn_size_total / len(fn_indices))
+        tp_word_count.append(tp_size_total / len(tp_indices))
+        tn_word_count.append(tn_size_total / len(tn_indices))
     for i in range(6):
-        print(f"{hit_word_count_tuples[i]} : {miss_word_count_tuples[i]}")
+        print(fp_word_count[i], fn_word_count[i], tp_word_count[i], tn_word_count[i])
+    x_values = range(len(fp_word_count))
 
+    # Plotting the values
+    plt.plot(x_values, fp_word_count, label='FP')
+    plt.plot(x_values, fn_word_count, label='FN')
+    plt.plot(x_values, tp_word_count, label='TP')
+    plt.plot(x_values, tn_word_count, label='TN')
+
+    # Adding labels and title
+    plt.xlabel('Index')
+    plt.ylabel('Word Count')
+    plt.title('Word Count Metrics')
+    plt.legend()
+
+    # Show plot
+    plt.show()
 
 if __name__ == '__main__':
     main()
