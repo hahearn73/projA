@@ -109,10 +109,14 @@ def test_min_samples_leaf(x_train_array, y_train_array, range_list):
 
 def find_best_hyperparameters(x_train_array, y_train_array, n_estimators_range, max_depth_range, min_samples_split_range, min_samples_leaf_range):
     tuples = []
+    total_iter = len(n_estimators_range) * len(max_depth_range) * len(min_samples_split_range) * len(min_samples_leaf_range)
+    iter = 0
+
     for n_estimators in n_estimators_range:
         for max_depth in max_depth_range:
             for min_samples_split in min_samples_split_range:
                 for min_samples_leaf in min_samples_leaf_range:
+                    iter = iter + 1
                     model = sklearn.ensemble.RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf)
                     train_err_per_fold, test_error_per_fold = train_models_and_calc_scores_for_n_fold_cv(model, x_train_array, y_train_array.ravel(), n_folds=NUM_FOLDS, random_state=RANDOM_STATE)
                     avg_test_error = np.average(test_error_per_fold)
@@ -120,7 +124,7 @@ def find_best_hyperparameters(x_train_array, y_train_array, n_estimators_range, 
 
                     new_tuple = (n_estimators, max_depth, min_samples_split, min_samples_leaf, avg_test_error, avg_train_error)
                     tuples.append(new_tuple)
-                    print(new_tuple)
+                    print(f"{iter}/{total_iter}", new_tuple)
     return find_min_tuple(tuples)
 
 
