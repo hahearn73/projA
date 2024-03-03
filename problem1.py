@@ -62,15 +62,15 @@ def make_bags_of_words(text_series, smallest, largest, max_features=None):
 ### TRAINING
 def find_best_hyperparameters(x_train_array, y_train_array, serialize=True):
     # penalties = ['l1', 'l2', 'elasticnet']
-    penalties = ['l2']
-    # C_grid = np.logspace(0, np.log10(2), 10)
-    C_grid = [1.0284017999892119]
-    # solvers = ['lbfgs', 'liblinear']
-    solvers = ['liblinear']
-    # fit_intercepts = [True, False]
-    fit_intercepts = [True]
-    # tols = np.logspace(-2, 0, 10)
-    tols = [0.4146299840754365]
+    penalties = ['l2', None]
+    C_grid = np.logspace(0, np.log10(2), 10)
+    # C_grid = [1.0284017999892119]
+    solvers = ['lbfgs']
+    # solvers = ['liblinear']
+    fit_intercepts = [True, False]
+    # fit_intercepts = [True]
+    tols = np.logspace(-2, 0, 10)
+    # tols = [0.4146299840754365]
 
     total_iterations = len(tols) * len(fit_intercepts) * len(solvers) * len(C_grid) * len(penalties)
     print(f'total iterations: {total_iterations}')
@@ -141,8 +141,8 @@ def main(data_dir='./data_reviews'):
     x_train_array = x_train_df.to_numpy()
     y_train_array = y_train_df.to_numpy()
     
-    # # find best hyperparameters
-    # best_model_and_hyperparameters = find_best_hyperparameters(x_train_array=x_train_array, y_train_array=y_train_array, serialize=True)
+    # find best hyperparameters
+    best_model_and_hyperparameters = find_best_hyperparameters(x_train_array=x_train_array, y_train_array=y_train_array, serialize=True)
 
     # # test with more words
     # x_train_df = pd.read_csv(os.path.join(data_dir, 'x_train.csv'))
@@ -158,11 +158,14 @@ def main(data_dir='./data_reviews'):
     # copy_and_test_model(read_in_model(), x_train_array, y_train_array)
 
     # current best model
-    model = sklearn.linear_model.LogisticRegression(C=1.0284017999892119, solver='liblinear', tol=0.4146299840754365, fit_intercept=True, penalty='l2')
+    # model = sklearn.linear_model.LogisticRegression(C=1.0284017999892119, solver='lbfgs', tol=0.4146299840754365, fit_intercept=True, penalty='l2')
+    # print(get_error_and_rocauc(model, x_train_array, y_train_array))
+    # print(model)
+    
     # write_out_model(model)
 
     # 1D
-    explore_word_count(model, x_train_array, y_train_array, text)
+    # explore_word_count(model, x_train_array, y_train_array, text)
 
 
 def explore_word_count(model, x_train_array, y_train_array, text):
