@@ -8,8 +8,8 @@ provided stub objects.
 
 import pandas as pd
 import os
-from model_loader1 import extract_BoW_features, classifier1, teamname  
-from model_loader2 import extract_awesome_features, classifier2 
+from model_loader1 import extract_BoW_features as extract_1, classifier1, teamname  
+from model_loader2 import extract_awesome_features as extract_2, classifier2 
 from model_loader2 import teamname as teamname_rep
 
 def main():
@@ -31,7 +31,7 @@ def main():
     # this function should accept a list of N lists, with each internal list contains two strings
     # It should return a numpy array of size [N, F1]
     print(x_test_text)
-    x_test1 = extract_BoW_features(x_test_text)
+    x_test1 = extract_1(x_test_text)
     assert(x_test1.shape[0] == len(x_test_text))
 
     # `classifier1` should be able to predict N probabilities from a feature matrix of size [N, F1]
@@ -47,7 +47,7 @@ def main():
 
     # this function should accept a list of N lists, with each internal list contains two strings
     # It should return a numpy array of size [N, F2]
-    x_test2 = extract_awesome_features(x_test_text)
+    x_test2 = extract_2(x_test_text)
     assert(x_test2.shape[0] == len(x_test_text))
 
     # `classifier2` should be able to predict N probabilities from a feature matrix of size [N, F2]
